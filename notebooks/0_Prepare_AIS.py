@@ -20,6 +20,11 @@ print("This might take 1-2 minutes depending on file size...")
 try:
     # 1. Load only necessary columns to save RAM
     cols = ['MMSI', 'BaseDateTime', 'LAT', 'LON', 'SOG', 'VesselName']
+    
+    # Check if file exists first
+    if not os.path.exists(INPUT_FILE):
+        raise FileNotFoundError(f"Input file not found: {INPUT_FILE}")
+
     df = pd.read_csv(INPUT_FILE, usecols=cols)
 
     print(f"Original Row Count: {len(df)}")
@@ -41,6 +46,5 @@ try:
     print("Use 'vessel_data_clean.csv' in your final project.")
     print("------------------------------------------------")
 
-except FileNotFoundError:
-    print("ERROR: Could not find '../data/ais_data/vessel_data.csv'")
-    print("Please check if the file is in the correct folder.")
+except Exception as e:
+    print(f"ERROR: {e}")

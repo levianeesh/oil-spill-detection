@@ -296,7 +296,3 @@ This project is licensed under the **MIT License**.
 * Kaggle SAR Dataset
 * DeepLabV3+ (Google Research)
 * NOAA Marine Cadastre AIS Dataset
-
-```
-
----

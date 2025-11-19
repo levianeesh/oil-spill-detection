@@ -1,0 +1,18 @@
+# Ignore Data
+data/
+
+# Ignore Virtual Environment
+.venv/
+venv/
+
+# Ignore Saved Models (Large files)
+saved_models/
+*.h5
+
+# Ignore Python cache
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Ignore VS Code settings
+.vscode/
