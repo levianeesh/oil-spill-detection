@@ -276,7 +276,7 @@ These must remain local.
 
 | Name              | Role                            | GitHub                                                     |
 | ----------------- | ------------------------------- | ---------------------------------------------------------- |
-| **Rick Mondal**   | Project Owner, ML Developer     | [https://github.com/Spectrae](https://github.com/Spectrae) |
+| **Rick Mondal**   | Backend Developer               | [https://github.com/Spectrae](https://github.com/Spectrae) |
 | **Contributor 2** | Research / Model Tuning         | *(Add GitHub link)*                                        |
 | **Contributor 3** | Data Cleaning / AIS Integration | *(Add GitHub link)*                                        |
 | **Contributor 4** | Testing & Documentation         | *(Add GitHub link)*                                        |
@@ -296,7 +296,3 @@ This project is licensed under the **MIT License**.
 * Kaggle SAR Dataset
 * DeepLabV3+ (Google Research)
 * NOAA Marine Cadastre AIS Dataset
-
-```
-
----
