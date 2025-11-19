@@ -298,5 +298,3 @@ This project is licensed under the **MIT License**.
 * NOAA Marine Cadastre AIS Dataset
 
 ```
-
----
