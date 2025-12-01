@@ -277,7 +277,7 @@ These must remain local.
 | Name              | Role                            | GitHub                                                     |
 | ----------------- | ------------------------------- | ---------------------------------------------------------- |
 | **Rick Mondal**   | Backend Developer               | [https://github.com/Spectrae](https://github.com/Spectrae) |
-| **Contributor 2** | Research / Model Tuning         | *(Add GitHub link)*                                        |
+| **Aneesh Ghosh** | Research / Model Tuning         | [https://github.com/levianeesh](https://github.com/levianeesh)                                        |
 | **Contributor 3** | Data Cleaning / AIS Integration | *(Add GitHub link)*                                        |
 | **Contributor 4** | Testing & Documentation         | *(Add GitHub link)*                                        |
 
