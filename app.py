@@ -5,31 +5,73 @@ import tensorflow as tf
 from tensorflow.keras.models import load_model
 
 # --- CONFIGURATION ---
-st.set_page_config(page_title="Oil Spill Forensic Tool", page_icon="🛢️", layout="wide")
+st.set_page_config(
+    page_title="Oil Spill Forensic Tool",
+    page_icon="🛢️",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# --- CUSTOM CSS FOR MODERN LOOK ---
+st.markdown("""
+    <style>
+    /* Main Background */
+    .stApp {
+        background-color: #0e1117;
+        color: #fafafa;
+    }
+    /* Metric Cards */
+    div[data-testid="stMetric"] {
+        background-color: #262730;
+        border: 1px solid #3b3d45;
+        padding: 15px 25px;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
+    div[data-testid="stMetricLabel"] {
+        color: #b0b3b8;
+    }
+    /* Severity Box Styling */
+    .severity-box {
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        font-weight: bold;
+        text-align: center;
+        font-size: 1.2rem;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
 # --- SIDEBAR ---
-st.sidebar.title("🔧 Control Panel")
+st.sidebar.title("🔧 Forensic Control")
+st.sidebar.markdown("---")
+
+# Move Uploader to Sidebar for cleaner UI
+uploaded_file = st.sidebar.file_uploader("📂 Upload SAR Image", type=["jpg", "png", "jpeg"])
+
+st.sidebar.markdown("### Settings")
 confidence_threshold = st.sidebar.slider("Detection Sensitivity", 0.0, 1.0, 0.05, 0.01)
-st.sidebar.info("Lower sensitivity detects fainter spills. Higher sensitivity reduces false alarms.")
+st.sidebar.info("ℹ️ Lower sensitivity detects fainter spills. Higher sensitivity reduces false alarms.")
 
 # --- MAIN APP ---
 st.title("🛢️ Oil Spill Forensic System")
-st.markdown("Upload a Satellite SAR image to detect oil spills and assess environmental damage.")
+st.caption("Satellite SAR Analysis & Environmental Damage Assessment")
 
-# Load Model (Cached so it doesn't reload every time)
+# Load Model (Cached)
 @st.cache_resource
 def load_ai_model():
     return load_model('saved_models/unet_oil_spill.h5')
 
 try:
     model = load_ai_model()
-    st.sidebar.success("AI Model Loaded Successfully")
+    # Using toast instead of sidebar success for a cleaner look
+    # st.toast("System Ready: AI Model Loaded", icon="✅") 
 except Exception as e:
     st.error(f"Error loading model: {e}")
 
-uploaded_file = st.file_uploader("Choose a Satellite Image...", type=["jpg", "png", "jpeg"])
-
 if uploaded_file is not None:
+    # --- LOGIC (UNTOUCHED) ---
     # 1. Read Image
     file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
     original_img = cv2.imdecode(file_bytes, 1)
@@ -44,11 +86,10 @@ if uploaded_file is not None:
     mask = (raw_prediction > confidence_threshold).astype(np.uint8)
 
     # 4. Create Red Forensic Overlay
-    # Create a pure red image
     mask_red = np.zeros_like(img_resized)
-    mask_red[:,:,0] = mask[:,:,0] * 255  # Set Red channel to 255 where mask is 1
+    mask_red[:,:,0] = mask[:,:,0] * 255  # Set Red channel to 255
     
-    # Blend original image with red mask
+    # Blend
     overlay = cv2.addWeighted(img_resized, 0.7, mask_red, 0.3, 0)
 
     # 5. Calculate Damage / Area
@@ -56,36 +97,54 @@ if uploaded_file is not None:
     area_sq_km = (oil_pixels * 100) / 1_000_000 # 1 pixel = 100m^2
     model_confidence = np.max(raw_prediction) * 100
 
-    # --- DISPLAY RESULTS ---
-    
-    # Metrics Row
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Detected Oil Pixels", f"{oil_pixels}")
-    col2.metric("Est. Spill Area", f"{area_sq_km:.4f} km²")
-    col3.metric("Model Confidence", f"{model_confidence:.1f}%")
+    # --- MODERN DISPLAY ---
 
-    # Images Row
-    st.divider()
-    col_a, col_b, col_c = st.columns(3)
-    
-    with col_a:
-        st.subheader("1. Satellite Input")
-        st.image(img_resized, use_column_width=True)
-        
-    with col_b:
-        st.subheader("2. AI Mask (Binary)")
-        st.image(mask * 255, use_column_width=True) # Multiply by 255 to make it white
-        
-    with col_c:
-        st.subheader("3. Forensic Overlay")
-        st.image(overlay, use_column_width=True)
+    st.markdown("---")
 
-    # Severity Warning
+    # 1. Severity Status Banner (Moved to top for visibility)
     if area_sq_km > 1.0:
-        st.error("🚨 CRITICAL SEVERITY: Large scale cleanup required.")
+        st.error(f"🚨 **CRITICAL SEVERITY DETECTED** | Large scale cleanup required ({area_sq_km:.2f} km²)")
     elif area_sq_km > 0.1:
-        st.warning("⚠️ HIGH SEVERITY: Containment booms advised.")
+        st.warning(f"⚠️ **HIGH SEVERITY DETECTED** | Containment booms advised ({area_sq_km:.2f} km²)")
     elif area_sq_km > 0.0:
-        st.info("ℹ️ MODERATE SEVERITY: Minor leakage detected.")
+        st.info(f"ℹ️ **MODERATE SEVERITY** | Minor leakage detected ({area_sq_km:.4f} km²)")
     else:
-        st.success("✅ NO SPILL DETECTED: Area is clear.")
+        st.success("✅ **NO SPILL DETECTED** | Area is clear")
+
+    # 2. Metrics Dashboard
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Detected Oil Pixels", f"{oil_pixels}")
+    m2.metric("Est. Spill Area", f"{area_sq_km:.4f} km²")
+    m3.metric("Model Confidence", f"{model_confidence:.1f}%")
+
+    st.markdown("### 🛰️ Visual Analysis")
+
+    # 3. Tabbed View (Cleaner than 3 columns)
+    tab1, tab2, tab3 = st.tabs(["🔍 Forensic Overlay", "🧠 AI Mask Analysis", "📷 Original Input"])
+
+    with tab1:
+        st.image(overlay, use_column_width=True, caption="Final Forensic Assessment")
+        
+    with tab2:
+        col_mask_1, col_mask_2 = st.columns([1, 3])
+        with col_mask_1:
+            st.markdown("""
+            **Mask Details:**
+            - White pixels indicate oil.
+            - Black pixels indicate water/land.
+            - Generated by U-Net Architecture.
+            """)
+        with col_mask_2:
+            st.image(mask * 255, use_column_width=True, caption="Binary Segmentation Mask")
+        
+    with tab3:
+        st.image(img_resized, use_column_width=True, caption="Raw Satellite Input (Resized 256x256)")
+
+else:
+    # Empty State (Clean landing page)
+    st.info("👈 Please upload a Satellite SAR image from the sidebar to begin analysis.")
+    st.markdown("""
+    <div style="text-align: center; color: #666;">
+        <h4>Waiting for input...</h4>
+    </div>
+    """, unsafe_allow_html=True)
