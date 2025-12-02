@@ -51,7 +51,7 @@ st.sidebar.markdown("---")
 uploaded_file = st.sidebar.file_uploader("📂 Upload SAR Image", type=["jpg", "png", "jpeg"])
 
 st.sidebar.markdown("### Settings")
-confidence_threshold = st.sidebar.slider("Detection Sensitivity", 0.0, 1.0, 0.05, 0.5)
+confidence_threshold = st.sidebar.slider("Detection Sensitivity", 0.0, 1.0, 0.05, 0.01)
 st.sidebar.info("ℹ️ Lower sensitivity detects fainter spills. Higher sensitivity reduces false alarms.")
 
 # --- MAIN APP ---
