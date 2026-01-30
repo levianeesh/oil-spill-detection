@@ -219,7 +219,7 @@ Click **Fork**.
 ### **2️⃣ Clone Your Fork**
 
 ```bash
-git clone https://github.com/YOUR-USERNAME/oil-spill-detection.git
+git clone https://github.com/levianeesh/oil-spill-detection.git
 cd oil-spill-detection
 ```
 
