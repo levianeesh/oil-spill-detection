@@ -63,7 +63,7 @@ data/ais_data/
 ## Installation
 
 ```bash
-git clone https://github.com/Spectrae/oil-spill-detection.git
+git clone https://github.com/levianeesh/oil-spill-detection.git
 cd oil-spill-detection
 pip install -r requirements.txt
 ```
