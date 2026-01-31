@@ -63,7 +63,7 @@ data/ais_data/
 ## Installation
 
 ```bash
-git clone https://github.com/Spectrae/oil-spill-detection.git
+git clone https://github.com/levianeesh/oil-spill-detection.git
 cd oil-spill-detection
 pip install -r requirements.txt
 ```
@@ -219,7 +219,7 @@ Click **Fork**.
 ### **2️⃣ Clone Your Fork**
 
 ```bash
-git clone https://github.com/YOUR-USERNAME/oil-spill-detection.git
+git clone https://github.com/levianeesh/oil-spill-detection.git
 cd oil-spill-detection
 ```
 
@@ -277,7 +277,7 @@ These must remain local.
 | Name              | Role                            | GitHub                                                     |
 | ----------------- | ------------------------------- | ---------------------------------------------------------- |
 | **Rick Mondal**   | Backend Developer               | [https://github.com/Spectrae](https://github.com/Spectrae) |
-| **Contributor 2** | Research / Model Tuning         | *(Add GitHub link)*                                        |
+| **Aneesh Ghosh** | Research / Model Tuning         | [(https://github.com/levianeesh)](https://github.com/levianeesh)|
 | **Contributor 3** | Data Cleaning / AIS Integration | *(Add GitHub link)*                                        |
 | **Contributor 4** | Testing & Documentation         | *(Add GitHub link)*                                        |
 
