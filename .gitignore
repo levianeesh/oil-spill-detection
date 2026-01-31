@@ -61,3 +61,12 @@ __pycache__/
 # -----------------------------
 *.DS_Store
 
+# -------- Frontend --------
+frontend/
+
+# -------- Backup / local scripts --------
+backup.py
+
+# -------- Documents --------
+*.pdf
+*.txt

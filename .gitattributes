@@ -1,0 +1,5 @@
+# Keep notebooks consistent across OS
+*.ipynb text eol=lf
+
+# Default text behavior
+* text=auto
