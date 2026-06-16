@@ -3,9 +3,9 @@ import os
 
 # --- PATHS ---
 # We use your existing big file as input
-INPUT_FILE = '../data/ais_data/vessel_data.csv' 
+INPUT_FILE = 'data/ais_data/vessel_data.csv' 
 # We save a new, small, fast file
-OUTPUT_FILE = '../data/ais_data/vessel_data_clean.csv'
+OUTPUT_FILE = 'data/ais_data/vessel_data_clean.csv'
 
 # --- CONFIGURATION ---
 # This must match the approximate area of your satellite image

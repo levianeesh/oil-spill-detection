@@ -1,4 +1,10 @@
 # -----------------------------
+# Jupyter Notebooks
+# -----------------------------
+# This folder is created by Jupyter automatically and should NEVER be pushed
+.ipynb_checkpoints/
+
+# -----------------------------
 # Ignore Data Files
 # -----------------------------
 data/
@@ -30,6 +36,7 @@ checkpoints/
 *.pt
 *.onnx
 *.ckpt
+*.keras
 
 # -----------------------------
 # Ignore Virtual Environments
@@ -50,14 +57,16 @@ __pycache__/
 # -----------------------------
 .vscode/
 .idea/
+*.swp
 
 # -----------------------------
-# Ignore Logs
+# Ignore Logs & Secrets
 # -----------------------------
 *.log
+.env
+.streamlit/secrets.toml
 
 # -----------------------------
 # Ignore Temp
 # -----------------------------
 *.DS_Store
-
