@@ -33,10 +33,12 @@ def find_file(filename, search_subdirs=["saved_models", "data/ais_data", "../sav
 # Locate Models
 unet_path = find_file("unet_oil_spill.h5") or "saved_models/unet_oil_spill.h5"
 deeplab_path = find_file("deeplabv3_oil_spill.h5") or "saved_models/deeplabv3_oil_spill.h5"
+sparse_path = find_file("sparse_oil_spill.h5") or "saved_models/sparse_oil_spill.h5"
 
 MODEL_PATHS = {
     "UNet (Standard)": unet_path,
-    "DeepLabV3+ (Experimental)": deeplab_path
+    "DeepLabV3+ (Experimental)": deeplab_path,
+    "Sparse Architecture (Advanced)": sparse_path
 }
 
 # Locate Data
@@ -83,8 +85,7 @@ section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] h2, sectio
 
 # --- 2. BACKEND LOGIC INTEGRATION ---
 
-# === NEW: Custom Metrics needed for Loading ===
-# These must match what was used in training exactly
+# Custom Metrics for Older Models
 def dice_loss(y_true, y_pred, smooth=1e-6):
     import tensorflow.keras.backend as K
     intersection = K.sum(y_true * y_pred, axis=[1,2,3])
@@ -106,6 +107,43 @@ def dice_coeff_metric(y_true, y_pred, smooth=1e-6):
     union = K.sum(y_true, axis=[1,2,3]) + K.sum(y_pred_metric, axis=[1,2,3])
     return K.mean((2. * intersection + smooth) / (union + smooth), axis=0)
 
+# Sparse Architecture Builder
+def sparse_conv_block(x, filters, groups=4):
+    import tensorflow as tf
+    x = tf.keras.layers.SeparableConv2D(filters, 3, padding='same', use_bias=False)(x)
+    x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.Activation('relu')(x)
+    
+    x = tf.keras.layers.Conv2D(filters, 1, groups=groups, padding='same', use_bias=False)(x)
+    x = tf.keras.layers.BatchNormalization()(x)
+    x = tf.keras.layers.Activation('relu')(x)
+    return x
+
+def build_sparse_seg_model(input_shape=(256, 256, 3), num_classes=1):
+    import tensorflow as tf
+    inputs = tf.keras.layers.Input(shape=input_shape)
+    e1 = sparse_conv_block(inputs, 32, groups=4)
+    p1 = tf.keras.layers.MaxPooling2D(2)(e1)
+    e2 = sparse_conv_block(p1, 64, groups=4)
+    p2 = tf.keras.layers.MaxPooling2D(2)(e2)
+    e3 = sparse_conv_block(p2, 128, groups=4)
+    p3 = tf.keras.layers.MaxPooling2D(2)(e3)
+    
+    b = sparse_conv_block(p3, 256, groups=8)
+    
+    d1 = tf.keras.layers.UpSampling2D(2)(b)
+    d1 = tf.keras.layers.Concatenate()([d1, e3])
+    d1 = sparse_conv_block(d1, 128, groups=4)
+    d2 = tf.keras.layers.UpSampling2D(2)(d1)
+    d2 = tf.keras.layers.Concatenate()([d2, e2])
+    d2 = sparse_conv_block(d2, 64, groups=4)
+    d3 = tf.keras.layers.UpSampling2D(2)(d2)
+    d3 = tf.keras.layers.Concatenate()([d3, e1])
+    d3 = sparse_conv_block(d3, 32, groups=4)
+    
+    outputs = tf.keras.layers.Conv2D(num_classes, 1, activation='sigmoid')(d3)
+    return tf.keras.models.Model(inputs, outputs)
+
 @st.cache_resource
 def load_backend_model(path):
     """
@@ -117,15 +155,20 @@ def load_backend_model(path):
         
         import tensorflow as tf
         
-        # FIX: Pass the custom objects dictionary
-        custom_objects_dict = {
-            'dice_loss': dice_loss,
-            'iou_metric': iou_metric,
-            'dice_coeff_metric': dice_coeff_metric
-        }
-        
-        model = tf.keras.models.load_model(path, custom_objects=custom_objects_dict)
-        return model, None
+        # FIX: Check if it's the sparse model to bypass version mismatches
+        if "sparse" in path.lower():
+            model = build_sparse_seg_model()
+            model.load_weights(path)
+            return model, None
+        else:
+            custom_objects_dict = {
+                'dice_loss': dice_loss,
+                'iou_metric': iou_metric,
+                'dice_coeff_metric': dice_coeff_metric
+            }
+            # Added compile=False to bypass metric loading errors
+            model = tf.keras.models.load_model(path, custom_objects=custom_objects_dict, compile=False)
+            return model, None
     except Exception as e:
         return None, str(e)
 

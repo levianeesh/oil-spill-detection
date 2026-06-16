@@ -70,3 +70,4 @@ __pycache__/
 # Ignore Temp
 # -----------------------------
 *.DS_Store
+frontend/
