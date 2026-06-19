@@ -30,10 +30,11 @@ def find_file(filename, search_subdirs=["saved_models", "data/ais_data", "../sav
             return os.path.abspath(path)
     return None 
 
-# Locate Models
-unet_path = find_file("unet_oil_spill.h5") or "saved_models/unet_oil_spill.h5"
+# Locate Models (UPDATED to support .keras format and the Sparse model)
+unet_path = find_file("unet_oil_spill.keras") or "saved_models/unet_oil_spill.keras"
 deeplab_path = find_file("deeplabv3_oil_spill.h5") or "saved_models/deeplabv3_oil_spill.h5"
-sparse_path = find_file("sparse_oil_spill.h5") or "saved_models/sparse_oil_spill.h5"
+sparse_path = find_file("sparse_unet_oil_spill.keras") or "saved_models/sparse_unet_oil_spill.keras"
+
 
 MODEL_PATHS = {
     "UNet (Standard)": unet_path,
@@ -85,90 +86,21 @@ section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] h2, sectio
 
 # --- 2. BACKEND LOGIC INTEGRATION ---
 
-# Custom Metrics for Older Models
-def dice_loss(y_true, y_pred, smooth=1e-6):
-    import tensorflow.keras.backend as K
-    intersection = K.sum(y_true * y_pred, axis=[1,2,3])
-    union = K.sum(y_true, axis=[1,2,3]) + K.sum(y_pred, axis=[1,2,3])
-    dice = K.mean((2. * intersection + smooth) / (union + smooth), axis=0)
-    return 1 - dice
-
-def iou_metric(y_true, y_pred, smooth=1e-6):
-    import tensorflow.keras.backend as K
-    y_pred_metric = K.cast(K.greater(y_pred, 0.5), K.floatx())
-    intersection = K.sum(K.abs(y_true * y_pred_metric), axis=[1,2,3])
-    union = K.sum(y_true,[1,2,3]) + K.sum(y_pred_metric,[1,2,3]) - intersection
-    return K.mean((intersection + smooth) / (union + smooth), axis=0)
-
-def dice_coeff_metric(y_true, y_pred, smooth=1e-6):
-    import tensorflow.keras.backend as K
-    y_pred_metric = K.cast(K.greater(y_pred, 0.5), K.floatx())
-    intersection = K.sum(y_true * y_pred_metric, axis=[1,2,3])
-    union = K.sum(y_true, axis=[1,2,3]) + K.sum(y_pred_metric, axis=[1,2,3])
-    return K.mean((2. * intersection + smooth) / (union + smooth), axis=0)
-
-# Sparse Architecture Builder
-def sparse_conv_block(x, filters, groups=4):
-    import tensorflow as tf
-    x = tf.keras.layers.SeparableConv2D(filters, 3, padding='same', use_bias=False)(x)
-    x = tf.keras.layers.BatchNormalization()(x)
-    x = tf.keras.layers.Activation('relu')(x)
-    
-    x = tf.keras.layers.Conv2D(filters, 1, groups=groups, padding='same', use_bias=False)(x)
-    x = tf.keras.layers.BatchNormalization()(x)
-    x = tf.keras.layers.Activation('relu')(x)
-    return x
-
-def build_sparse_seg_model(input_shape=(256, 256, 3), num_classes=1):
-    import tensorflow as tf
-    inputs = tf.keras.layers.Input(shape=input_shape)
-    e1 = sparse_conv_block(inputs, 32, groups=4)
-    p1 = tf.keras.layers.MaxPooling2D(2)(e1)
-    e2 = sparse_conv_block(p1, 64, groups=4)
-    p2 = tf.keras.layers.MaxPooling2D(2)(e2)
-    e3 = sparse_conv_block(p2, 128, groups=4)
-    p3 = tf.keras.layers.MaxPooling2D(2)(e3)
-    
-    b = sparse_conv_block(p3, 256, groups=8)
-    
-    d1 = tf.keras.layers.UpSampling2D(2)(b)
-    d1 = tf.keras.layers.Concatenate()([d1, e3])
-    d1 = sparse_conv_block(d1, 128, groups=4)
-    d2 = tf.keras.layers.UpSampling2D(2)(d1)
-    d2 = tf.keras.layers.Concatenate()([d2, e2])
-    d2 = sparse_conv_block(d2, 64, groups=4)
-    d3 = tf.keras.layers.UpSampling2D(2)(d2)
-    d3 = tf.keras.layers.Concatenate()([d3, e1])
-    d3 = sparse_conv_block(d3, 32, groups=4)
-    
-    outputs = tf.keras.layers.Conv2D(num_classes, 1, activation='sigmoid')(d3)
-    return tf.keras.models.Model(inputs, outputs)
-
 @st.cache_resource
 def load_backend_model(path):
     """
-    Loads the trained Keras model with custom objects.
+    Loads the trained Keras model.
     """
     try:
         if not os.path.exists(path):
-            return None, "File path check failed (Code 404)"
+            return None, f"File not found: {path}"
         
         import tensorflow as tf
         
-        # FIX: Check if it's the sparse model to bypass version mismatches
-        if "sparse" in path.lower():
-            model = build_sparse_seg_model()
-            model.load_weights(path)
-            return model, None
-        else:
-            custom_objects_dict = {
-                'dice_loss': dice_loss,
-                'iou_metric': iou_metric,
-                'dice_coeff_metric': dice_coeff_metric
-            }
-            # Added compile=False to bypass metric loading errors
-            model = tf.keras.models.load_model(path, custom_objects=custom_objects_dict, compile=False)
-            return model, None
+        # FIX: Added compile=False. Since we are only doing inference, we don't need 
+        # to load the custom training metrics (which prevents crashes across different models).
+        model = tf.keras.models.load_model(path, compile=False)
+        return model, None
     except Exception as e:
         return None, str(e)
 
@@ -177,9 +109,21 @@ def run_inference(model, image_input, threshold):
     Performs image preprocessing, inference, and thresholding.
     """
     try:
-        # Preprocessing
-        img_resized = cv2.resize(image_input, (256, 256))
-        img_tensor = np.expand_dims(img_resized, axis=0).astype(np.float32) / 255.0
+        # Preprocessing: Smart check for model's expected channels
+        expected_channels = model.input_shape[-1]
+        
+        if expected_channels == 1:
+            proc_img = cv2.cvtColor(image_input, cv2.COLOR_RGB2GRAY)
+            img_resized = cv2.resize(proc_img, (256, 256))
+            img_tensor = np.expand_dims(img_resized, axis=-1).astype(np.float32) / 255.0
+        else:
+            img_resized = cv2.resize(image_input, (256, 256))
+            img_tensor = img_resized.astype(np.float32) / 255.0
+            
+        img_tensor = np.expand_dims(img_tensor, axis=0)
+        
+        # Visualization image remains RGB
+        vis_resized = cv2.resize(image_input, (256, 256))
         
         # Inference
         raw_pred = model.predict(img_tensor, verbose=0)[0]
@@ -193,12 +137,19 @@ def run_inference(model, image_input, threshold):
         # Thresholding
         mask = (raw_pred_2d > threshold).astype(np.uint8)
         
-        return img_resized, mask, raw_pred_2d
+        return vis_resized, mask, raw_pred_2d
     except Exception as e:
         raise e
 
-def analyze_damage(mask, pixel_res_m2=100):
+def analyze_damage(mask, raw_pred, pixel_res_m2=100):
     oil_pixels = np.count_nonzero(mask)
+    
+    # Calculate Average Confidence securely using only the predicted oil spill region
+    if oil_pixels > 0:
+        avg_confidence = np.mean(raw_pred[mask > 0]) * 100
+    else:
+        avg_confidence = 0.0
+        
     total_area_m2 = oil_pixels * pixel_res_m2
     total_area_km2 = total_area_m2 / 1_000_000.0
     
@@ -224,7 +175,8 @@ def analyze_damage(mask, pixel_res_m2=100):
         "area_km2": total_area_km2,
         "severity": severity,
         "css_class": css_class,
-        "message": msg
+        "message": msg,
+        "avg_confidence": avg_confidence
     }
 
 @st.cache_data
@@ -337,7 +289,7 @@ def render_sidebar():
         upload = st.file_uploader("Upload SAR Image", type=['jpg', 'png', 'jpeg'])
         
         st.subheader("Parameters")
-        threshold = st.slider("**Detection Sensitivity**", 0.0, 1.0, 0.05, 0.01)
+        threshold = st.slider("**Detection Sensitivity**", 0.0, 1.0, 0.50, 0.01) # Defaulted to 0.50 based on training
         alpha = st.slider("**Overlay Opacity**", 0.1, 1.0, 0.6)
         
         st.info(random.choice(TIPS_AND_TRICKS))
@@ -397,7 +349,8 @@ def main():
                     
                 progress_bar.progress(75)
                 status_text.text("Calculating severity and checking AIS data...")
-                damage_report = analyze_damage(mask)
+                
+                damage_report = analyze_damage(mask, raw_prob)
                 
                 SPILL_LAT, SPILL_LON = 28.5, -90.5 
                 suspects = get_ais_anomalies(SPILL_LAT, SPILL_LON) 
@@ -422,7 +375,7 @@ def main():
                 m1, m2, m3, m4 = st.columns(4)
                 m1.metric("Detected Oil Pixels", f"{damage_report['pixels']:,}")
                 m2.metric("Spill Area", f"{damage_report['area_km2']:.4f} km²")
-                m3.metric("Max Probability", f"{np.max(raw_prob)*100:.1f}%")
+                m3.metric("Average AI Confidence", f"{damage_report['avg_confidence']:.2f}%")
                 m4.metric("Process Latency", "**Instant**")
                 
                 st.markdown("### 🗺️ Operational Infrastructure") 
